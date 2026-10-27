@@ -1,0 +1,17 @@
+import { cp, mkdir, readdir } from "node:fs/promises";
+import { createRequire } from "node:module";
+import path from "node:path";
+const require = createRequire(import.meta.url);
+const pdf = path.dirname(require.resolve("pdfjs-dist/package.json"));
+const tess = path.dirname(require.resolve("tesseract.js/package.json"));
+const core = path.dirname(createRequire(path.join(tess,"package.json")).resolve("tesseract.js-core/package.json"));
+const root = "public/legal-assets";
+await mkdir(`${root}/pdfjs`, { recursive: true }); await mkdir(`${root}/ocr/core`, { recursive: true });
+await cp(path.join(pdf,"build/pdf.worker.min.mjs"),`${root}/pdfjs/pdf.worker.min.mjs`);
+for (const folder of ["cmaps","standard_fonts","wasm","iccs"]) await cp(path.join(pdf,folder),`${root}/pdfjs/${folder}`,{recursive:true});
+await cp(path.join(pdf,"LICENSE"),`${root}/pdfjs/LICENSE`);
+await cp(path.join(tess,"dist/worker.min.js"),`${root}/ocr/worker.min.js`);
+await cp(path.join(tess,"LICENSE.md"),`${root}/ocr/LICENSE.md`);
+for (const file of await readdir(core)) if (/^tesseract-core-(?:(?:relaxedsimd|simd)-)?lstm\.wasm(?:\.js)?$/.test(file)) await cp(path.join(core,file),`${root}/ocr/core/${file}`);
+await cp(path.join(core,"LICENSE"),`${root}/ocr/core/LICENSE`);
+console.log("Local legal PDF/OCR assets prepared; no document or credentials accessed.");

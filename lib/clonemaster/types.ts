@@ -1,0 +1,17 @@
+export const LIMITS = { templateBytes: 256 * 1024, sourceBytes: 8 * 1024 * 1024, totalInputBytes: 20 * 1024 * 1024, filesPerArea: 5, zipEntries: 200, inflatedBytes: 24 * 1024 * 1024, xmlBytes: 8 * 1024 * 1024, cells: 100000, rows: 5000, columns: 200, fields: 200, outputs: 500, outputBytes: 32 * 1024 * 1024, instruction: 2000 } as const;
+export type Encoding = "utf-8" | "utf-16le" | "utf-16be" | "windows-1252";
+export type TemplateField = { id: string; section: string; key: string; occurrence: number; line: number; start: number; end: number; value: string };
+export type Template = { id: string; name: string; extension: string; bytes: Uint8Array; text: string; encoding: Encoding; bomLength: number; fields: TemplateField[] };
+export type Cell = { raw: string; displayed: string | null; kind: "text" | "number" | "date" | "boolean" | "error"; formula: boolean; warning?: string };
+export type SourceRow = { number: number; cells: Record<string, Cell> };
+export type Sheet = { id: string; name: string; hidden: boolean; rows: SourceRow[] };
+export type Source = { id: string; name: string; sheets: Sheet[]; warnings: string[] };
+export type Column = { id: string; label: string };
+export type Mapping = { column: string; field: string };
+export type Filter = { column: string; operator: "contains" | "equals" | "gt" | "lt" | "date-before" | "date-after"; value: string };
+export type CloneConfig = { templateId: string; sourceId: string; sheetId: string; headerRow: number; firstRow: number; lastRow: number; selectedRows: string; mappings: Mapping[]; valueMode: "raw" | "displayed"; emptyPolicy: "skip" | "error"; allowCachedFormulas: boolean; filter: Filter | null; mode: "exact-text" };
+export type Plan = { config: CloneConfig; records: number[]; warnings: string[]; selectedColumns: string[]; mode: "exact-text"; outputExtension: string };
+export type Preview = { before: string; after: string; changes: { field: string; column: string; before: string; after: string }[]; row: number };
+export type CloneOutput = { filename: string; bytes: Uint8Array; templateId: string; row: number; changes: Preview["changes"] };
+export type BatchResult = { outputs: CloneOutput[]; errors: { templateId: string; row: number; message: string }[]; zip: Uint8Array | null; cancelled: boolean };
+export type WorkerRequest = { id: number; command: "template"; name: string; fileId: string; bytes: Uint8Array; encoding: Encoding | "auto" } | { id: number; command: "source"; name: string; fileId: string; bytes: Uint8Array } | { id: number; command: "generate"; templates: Template[]; sources: Source[]; configs: CloneConfig[] };

@@ -1,0 +1,38 @@
+name: Auxiliary worker on 256 MiB
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build auxiliary image
+        run: docker build -t pdfmaster-aux .
+      - name: Exercise the HTTP API with 256 MiB and 0.25 CPU
+        env:
+          BILLING_SIGNING_SECRET: synthetic-ci-test-only-not-a-real-secret
+        run: |
+          mkdir -p .vercel/review/aux-worker
+          docker run -d --name aux --network none --memory 256m --memory-swap 256m --cpus 0.25 --pids-limit 80 -e BILLING_SIGNING_SECRET -e PROCESSING_WORKER_URL=https://unused.example pdfmaster-aux
+          docker run --name aux-client --network container:aux -e BILLING_SIGNING_SECRET pdfmaster-aux node scripts/smoke-aux-worker.mjs
+          docker cp aux-client:/app/.vercel/review/aux-worker/results.json .vercel/review/aux-worker/results.json
+      - name: Collect memory and server state
+        if: always()
+        run: |
+          mkdir -p .vercel/review/aux-worker
+          docker exec aux cat /sys/fs/cgroup/memory.peak > .vercel/review/aux-worker/memory-peak.txt || true
+          docker exec aux cat /sys/fs/cgroup/memory.events > .vercel/review/aux-worker/memory-events.txt || true
+          docker inspect aux --format '{{json .State}}' > .vercel/review/aux-worker/state.json || true
+          docker logs aux > .vercel/review/aux-worker/server.txt 2>&1 || true
+          docker image inspect pdfmaster-aux --format '{{.Size}}' > .vercel/review/aux-worker/image-bytes.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auxiliary-worker-256mb
+          path: .vercel/review/aux-worker/
+          retention-days: 7

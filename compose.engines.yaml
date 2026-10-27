@@ -1,0 +1,28 @@
+# Separate services: do not add these runtimes to the existing small Node worker.
+# Choose tested, versioned images explicitly before starting.
+services:
+  docling:
+    image: ${DOCLING_IMAGE:?Set a versioned quay.io/docling-project/docling-serve image}
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      DOCLING_SERVE_API_KEY: ${DOCLING_API_KEY:?Set a private API key}
+      DOCLING_SERVE_ENABLE_UI: "false"
+      DOCLING_DEVICE: cpu
+      DOCLING_NUM_THREADS: "2"
+      DOCLING_SERVE_ENG_LOC_NUM_WORKERS: "1"
+      DOCLING_SERVE_ENABLE_REMOTE_SERVICES: "false"
+    mem_limit: 4g
+    cpus: 2
+    restart: unless-stopped
+  stirling:
+    image: ${STIRLING_IMAGE:?Set a versioned full Stirling PDF image}
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SECURITY_ENABLELOGIN: "true"
+      SECURITY_CUSTOMGLOBALAPIKEY: ${STIRLING_PDF_API_KEY:?Set a private API key}
+      SYSTEM_DEFAULTLOCALE: pt-BR
+    mem_limit: 4g
+    cpus: 2
+    restart: unless-stopped

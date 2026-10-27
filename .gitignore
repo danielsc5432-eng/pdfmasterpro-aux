@@ -1,0 +1,24 @@
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+
+.vercel
+.env*
+__pycache__/
+*.pyc
+.venv/
+.lightning-ai/
+
+# Generated from pinned npm dependencies during build. OCR language assets remain tracked.
+/public/legal-assets/pdfjs/
+/public/legal-assets/ocr/core/
+/public/legal-assets/ocr/worker.min.js
+/public/legal-assets/ocr/LICENSE.md

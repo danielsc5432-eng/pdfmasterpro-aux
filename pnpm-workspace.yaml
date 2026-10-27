@@ -1,0 +1,4 @@
+onlyBuiltDependencies:
+  - esbuild
+overrides:
+  '@langchain/core>zod': 4.6.6

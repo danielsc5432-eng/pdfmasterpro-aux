@@ -1,0 +1,38 @@
+name: Native PDF container capacity
+on:
+  workflow_dispatch:
+  push:
+    branches: [validation/native-pdf-engines]
+permissions:
+  contents: read
+concurrency:
+  group: native-pdf-capacity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the actual worker image
+        run: docker build --tag pdfmaster-native-validation .
+      - name: Prepare offline synthetic fixtures
+        run: |
+          mkdir -p .vercel/review/pdf24-research
+          docker run --rm --network none pdfmaster-native-validation /opt/pdf-engines/bin/python scripts/test-native-png-validation.py
+          docker run --name pdf-fixtures --network none pdfmaster-native-validation /opt/pdf2docx/bin/python scripts/prepare-native-engine-fixtures.py
+          docker cp pdf-fixtures:/app/.vercel/review/ocrmypdf-benchmark .vercel/review/
+      - name: Exercise container with Free plan CPU and RAM limits
+        run: |
+          docker run --name pdf-capacity --network none --memory 512m --memory-swap 512m --cpus 0.1 --pids-limit 160 -v "$PWD/.vercel/review:/app/.vercel/review" pdfmaster-native-validation python3 scripts/measure-native-container.py
+      - name: Record container state
+        if: always()
+        run: |
+          docker inspect pdf-capacity --format '{{json .State}}' > .vercel/review/pdf24-research/container-state.json || true
+          docker logs pdf-capacity > .vercel/review/pdf24-research/container-output.txt 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-pdf-linux-capacity
+          path: .vercel/review/pdf24-research/
+          retention-days: 7

@@ -1,0 +1,14 @@
+[project]
+name = "pdfmasterpro-docling-test"
+version = "0.1.0"
+requires-python = ">=3.11,<3.13"
+dependencies = ["docling==2.142.1", "fastapi", "python-multipart", "torch", "torchvision"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

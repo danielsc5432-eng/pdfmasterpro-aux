@@ -1,0 +1,64 @@
+name: PDF conversion on Debian
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  conversion:
+    runs-on: ubuntu-latest
+    container: node:22-trixie-slim
+    timeout-minutes: 20
+    env:
+      PDF_TO_WORD_PYTHON: /opt/pdf2docx/bin/python
+      PDF_RENDERER: pdftoppm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the worker's native dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends poppler-utils ghostscript qpdf tesseract-ocr tesseract-ocr-por tesseract-ocr-eng fontconfig fonts-liberation fonts-noto-core fonts-noto-cjk libreoffice-writer python3 python3-venv libgomp1
+          cp deploy/pdf-fonts.conf /etc/fonts/conf.d/99-pdfmaster.conf
+          fc-cache -f
+          python3 -m venv /opt/pdf2docx
+          /opt/pdf2docx/bin/pip install --no-cache-dir -r requirements-pdf2docx.txt
+          python3 -m venv /opt/semantic-ai-tests
+          /opt/semantic-ai-tests/bin/pip install --no-cache-dir -r deploy/semantic-ai/requirements-test.txt
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Verify code and native geometry
+        run: |
+          pnpm test
+          pnpm typecheck
+          pnpm build
+          /opt/pdf2docx/bin/python scripts/test-native-layout.py
+          /opt/pdf2docx/bin/python scripts/test-pdf-fidelity.py
+          /opt/pdf2docx/bin/python scripts/test-pdf-optimizer.py
+          /opt/pdf2docx/bin/python scripts/test-divergences.py
+          /opt/semantic-ai-tests/bin/python scripts/test-semantic-ai.py
+          pnpm exec tsx scripts/smoke-optimizer.ts
+      - name: Verify both quarter turns
+        run: pnpm test:conversion --case=rotated-page --strict --keep-candidates
+      - name: Measure the complete public and synthetic corpus
+        run: pnpm test:conversion --public --keep-candidates --baseline
+      - name: Verify automatic routing on a mixed document
+        run: pnpm test:conversion --case=mixed-renderers --automatic --strict
+      - name: Render synthetic diagnostic candidates
+        if: always()
+        run: |
+          mkdir -p .vercel/regression-pdf/rendered
+          for candidate in .vercel/regression-pdf/*.candidate-*.docx; do
+            [ -f "$candidate" ] || continue
+            timeout 45s soffice --headless --convert-to pdf:writer_pdf_Export --outdir .vercel/regression-pdf/rendered "$candidate" || true
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-pdf-regression-debian
+          path: .vercel/regression-pdf/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pdf-optimizer-regression-debian
+          path: .vercel/optimizer-regression/
+          retention-days: 7
